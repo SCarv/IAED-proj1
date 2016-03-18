@@ -33,9 +33,9 @@ struct Person_node* push_relation(struct Person* this, struct Person* that)
 {
 	struct Person_node* new_node = malloc(sizeof(struct Person_node));
 
-	new_node -> person = that; 
-	new_node -> next = that -> friend_list;
-	this -> friend_list = new_node;
+	new_node->person = that; 
+	new_node->next = that->friend_list;
+	this->friend_list = new_node;
 
 	return new_node;    
 }
@@ -70,8 +70,8 @@ unsigned count_cut_vertices_tarjan(struct Person* parent, int current_depth, int
 	bool maybe_fundamental 		 = false;
 	struct Person_node* current_node = parent->friend_list;
 
-	person->depth = current_depth; 
-	person->low   = current_depth;
+	parent->depth = current_depth; 
+	parent->low   = current_depth;
 
 	while (current_node) {
 
@@ -98,14 +98,14 @@ unsigned count_cut_vertices_tarjan(struct Person* parent, int current_depth, int
 	}
 
 	if (
-		(current_person->parent && maybe_fundamental ||
-		!(current_person->parent) && child_count > 1)
+		(current_person->parent && maybe_fundamental) ||
+		(!(current_person->parent) && children_count > 1)
 
-	)/*then*/{
+	)/*then we have found a cut vertex!*/{
 		
-		*max = MAX(*max, parent->depth;
-		*min = MIN(*min, parent->depth);
-		return 1 + lower_fundamentals; 
+			*max = MAX(*max, parent->depth);
+			*min = MIN(*min, parent->depth);
+			return 1 + lower_fundamentals; 
 	}
 
 	else return lower_fundamentals; 
@@ -120,10 +120,15 @@ exist and how many 'relations' exist between these all_people. */
 	struct Person** all_people;
 	unsigned all_people_count;
 	unsigned fundamental_people_count;
+	struct Person* grandfather;
 	int min = -1;
 	int max = -1; 
 
 	scanf("%u %*u", &all_people_count);
+	#if DEBUG
+	printf("%u\n", all_people_count);
+	#endif
+
 	all_people = malloc(sizeof(struct Person*) * all_people_count);
 
 	while (all_people_count--)
@@ -131,7 +136,9 @@ exist and how many 'relations' exist between these all_people. */
 
 	get_relations(all_people);
 
-	fundamental_people_count = count_cut_vertices_tarjan(all_people, 1, &min, &max);
+	grandfather = all_people[rand() % all_people_count];
+
+	fundamental_people_count = count_cut_vertices_tarjan(grandfather, 1, &min, &max);
 
 	printf("%u\n%d %d\n", fundamental_people_count, min, max);
 
