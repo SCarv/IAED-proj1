@@ -22,7 +22,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-
+#include <time.h>
+#
 
 #define MAX(A,B) (A > B ? A : B)
 #define MIN(A,B) (A < B ? A : B) 
@@ -71,7 +72,7 @@ struct Adj_list {
  * note: calloc zeroes all struct members, which is the correct value for all. */
 struct Vertex* new_vertex(void) 
 {
-	return calloc(sizeof(struct Vertex), 1);
+	return calloc(1, sizeof(struct Vertex));
 }
 
 /* function new_adjacency: adds an edge from 'this' to 'that'. */
@@ -106,17 +107,20 @@ void get_edges(struct Vertex* all_vertices[])
 }
 
 
-void count_cut_vertices_tarjan(struct Vertex* all_vertices[], unsigned top_index, unsigned depth, int result[])
+void count_cut_vertices_tarjan(struct Vertex* all_vertices[], unsigned top_index, unsigned depth, unsigned result[])
 {
+	if (!all_vertices || !top_index || !depth || !result) 
+		fputs("UNEXPECTED NULL VALUE!", stderr), exit(1);
+
 	struct Adj_list* adjacency;
 	unsigned adjacent_index;
 	struct Vertex* adjacent;
 	
 	struct Vertex* top = all_vertices[top_index];
 
-	int* count = result + 0;
-	int* min   = result + 1;
-	int* max   = result + 2;	
+	unsigned* count = result + 0;
+	unsigned* min   = result + 1;
+	unsigned* max   = result + 2;	
 
 	unsigned children_count = 0;
 
@@ -153,14 +157,14 @@ void count_cut_vertices_tarjan(struct Vertex* all_vertices[], unsigned top_index
 		adjacency = adjacency->next;
 	}
 
-	if ((adjacent->parent && maybe_fundamental) ||
-		(!adjacent->parent && children_count > 1)) {
+	if ((top->parent && maybe_fundamental) ||
+		(!top->parent && children_count > 1)) {
 	
 			/*then we have found a cut vertex!*/
 		
-			*count += 1;
-			*max    = MAX(*max, top_index);
-			*min    = MIN(*min, top_index); 
+		*count += 1;
+		*min    = MIN(*min, top_index); 
+		*max    = MAX(*max, top_index);
 	}
 }
 
@@ -180,27 +184,41 @@ int main()
 	unsigned 	 vertex_count;
 	unsigned 	 grandfather_index;
 
-	int 		 output[3];
+	unsigned 	 output[3];
 
 	scanf("%u %*u ", &vertex_count);
 
-	output[0] = 0; output[1] = vertex_count+1; output[2] = 0;
-	grandfather_index = rand() % vertex_count;
-
-	/* Never use index 0 of this vector. */ 
-	all_vertices = malloc(sizeof(struct Vertex) * vertex_count);
+	output[0] = 0; 
+	output[1] = -1; 
+	output[2] = 0;
 
 
-	/* XXX: Make 'all_vertices' a one-indexed vector! */
-	all_vertices[vertex_count] =  NULL;
+	/* XXX: Make 'all_vertices' a one-indexed vector! 
+		The input file should id vertices with positive integers only.
+		Hence we make it so 'all_vertices''s indexes agree with this.
+		Begins at 
+		Ends at all all_vertices[
+	*/
 
-	while (vertex_count) 
-		all_vertices[--vertex_count] = new_vertex();
+	/* Never use index 0 of 'all_vertices'. Allocate two extra positions to cap off
+	   the beginning and the end with a NULL. */ 
+	all_vertices = malloc(sizeof(struct Vertex) * (vertex_count+2));
 
-	--all_vertices;
-
+	/* Cap off 'all_vertices' at the beginning with a NULL. */
 	all_vertices[0] = NULL;
+	all_vertices[vertex_count+1] = NULL;
 
+	/* Fill all 'all_vertices''s indexes with the required amount of vertices.*/
+	while (vertex_count) 
+		all_vertices[vertex_count--] = new_vertex();
+
+
+	/* Choose a random index to start the cut vertex search algorithm.
+	   Have blind faith that this will help with the algorithm's performance. 
+	   Note: + 1 to not choose the zeroth index; - 1 to not go over 'all_vertices' size */
+	srand(time(NULL));
+	/*grandfather_index = (rand() % (vertex_count - 1)) + 1;*/
+	grandfather_index = 1;
 	get_edges(all_vertices);
 
 	count_cut_vertices_tarjan(all_vertices, grandfather_index, 1, output);
@@ -208,7 +226,7 @@ int main()
 	if (output[0])
 		printf("%u\n%d %d\n", output[0], output[1], output[2]);
 	else 
-		puts("0\n-1 -1\n");
+		puts("0\n-1 -1");
 
 	return EXIT_SUCCESS;
-}
+}	
