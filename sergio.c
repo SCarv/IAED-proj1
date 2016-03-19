@@ -1,146 +1,214 @@
+/*\ count_cut_vertices_tarjan.c
+ * 
+ * This algorithm was written by students of INSTITUTO SUPERIOR TÉCNICO, in Portugal, on 19/03/2016,
+ * for the Análise e Síntese de Algoritmos class.
+ *
+ * Authors:
+ * Sérgio Carvalho: ist181513
+ * Daniel Chaves  : ist181651
+ * 
+ * This program was written to solve the number of 
+ * However this problem is equivalent to counting the 'cut vertices'
+ * so this problem is given as a generalization.
+ * 
+ * The program intends to find all vertices with a given
+ * The breadth of this program is in the function with the same name as the program.
+ *
+ * The input should be any number of lines containing solely two integers
+ * separated by spaces. Example:
+ * Intended compilation command: gcc -ansi -pedantic -Wall -O3
+\*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
+
 #define MAX(A,B) (A > B ? A : B)
 #define MIN(A,B) (A < B ? A : B) 
 
-/* A person on this network. Members set up for the algorithm. */
-struct Person {
 
-	unsigned low;
+/*** PART 1: STRUCTS. None of them are typedefd. ***/
+
+/*\
+ * struct Vertex: A vertex on this graph.
+ * The members are set up for the main algorithm to be executed.
+ *
+ * depth   : the finding time for this vertex. Same as the number of recursive
+ * 	     calls necessary for the algorithm to reach this vertex. 
+ * low     : The lowest possible 'depth' value for this vertex.
+ * parent  : the node through which we got to this vertex.
+ * adj_head: the complete adjacency list for this vertex. 
+\*/
+
+struct Vertex {
+
 	unsigned depth;
-	struct Person* parent;
-	struct Person_node* friend_list;
+	unsigned low;
+	struct Vertex* parent;
+	struct Adj_list* adj_head;
 };
 
 
-/* Abstractly, relations are a linked list. */
-struct Person_node {
+/*\
+ * struct Adj_list: An adjacency list for a vertex. 
+ * Only makes sense within a vertex.
+ * 
+ * vertex_index : this vertex's index in the vector which has all the existing vertices.
+ * next		: the next node (also a (smaller) adjacency list) on this vertex's
+ * 		  adjacency list, which should have a different 'vertex_index'.
+\*/
+ 
+struct Adj_list {
 
-	struct Person* person;
-	struct Person_node* next;
+	unsigned vertex_index;
+	struct Adj_list* next;
 };
 
+/**************************** PART 2: FUNCTIONS ******************************/
 
-struct Person* new_person(void) 
+/* function new_vertex: returns a new vertex. 
+ * note: calloc zeroes all struct members, which is the correct value for all. */
+struct Vertex* new_vertex(void) 
 {
-	return calloc(sizeof(struct Person_node), 1); 
+	return calloc(sizeof(struct Vertex), 1);
 }
 
-
-struct Person_node* push_relation(struct Person* this, struct Person* that)
+/* function new_adjacency: adds an edge from 'this' to 'that'. */
+void new_adjacency(struct Vertex* all_vertices[], unsigned this_index, unsigned that_index)
 {
-	struct Person_node* new_node = malloc(sizeof(struct Person_node));
+	struct Vertex* this = all_vertices[this_index];
 
-	new_node->person = that; 
-	new_node->next = that->friend_list;
-	this->friend_list = new_node;
+	struct Adj_list* new_adj_list = malloc(sizeof(struct Adj_list));
 
-	return new_node;    
+	new_adj_list->vertex_index     = that_index;
+	new_adj_list->next 	       = this->adj_head;
+
+	this->adj_head = new_adj_list;
 }
 
-
-void new_relation(struct Person* this, struct Person* that)
-{
-	push_relation(this, that);
-	push_relation(that, this);
-}
 
 /* Get all lines given in the input until we read a line that isn't two unsigned decimals. 
- * These decimals represent a 'relation' between two all_people. */
-void get_relations(struct Person** all_people) 
+ * These decimals represent an edge that connects two vertices. 
+ */
+void get_edges(struct Vertex* all_vertices[]) 
 {
-	unsigned first_id;
-	unsigned second_id;
+	unsigned this_index;
+	unsigned that_index;
 
-	while (scanf(" %u %u", &first_id, &second_id) == 2)
-		new_relation (
-			all_people[first_id], 
-			all_people[second_id]
-		);	
+	while (scanf("%u %u ", &this_index, &that_index) == 2) {
+
+		/*This graph is bidirectional: make a new adjacency for both vertices*/
+
+		new_adjacency(all_vertices, this_index, that_index);
+		new_adjacency(all_vertices, that_index, this_index);
+	}
 }
 
 
-unsigned count_cut_vertices_tarjan(struct Person* parent, int current_depth, int* min, int* max)
+void count_cut_vertices_tarjan(struct Vertex* all_vertices[], unsigned top_index, unsigned depth, int result[])
 {
-	struct Person* current_person; 
-	unsigned lower_fundamentals;
-	unsigned children_count		 = 0;
-	bool maybe_fundamental 		 = false;
-	struct Person_node* current_node = parent->friend_list;
+	struct Adj_list* adjacency;
+	unsigned adjacent_index;
+	struct Vertex* adjacent;
+	
+	struct Vertex* top = all_vertices[top_index];
 
-	parent->depth = current_depth; 
-	parent->low   = current_depth;
+	int* count = result + 0;
+	int* min   = result + 1;
+	int* max   = result + 2;	
 
-	while (current_node) {
+	unsigned children_count = 0;
 
-		current_person = current_node->person;
-		
-		if (! current_person->depth) { /* this person hasn't been visited before */
+	bool maybe_fundamental = false; 
 
-			current_person->parent = parent;	
-			lower_fundamentals = 
-			count_cut_vertices_tarjan(current_person, current_depth + 1, min, max);
+	top->depth  = depth; 
+	top->low    = depth;
 
-			if (current_person->low >= current_depth)
+	adjacency = top->adj_head;
+
+	while (adjacency) {
+
+		adjacent_index 	= adjacency->vertex_index;
+		adjacent 	= all_vertices[adjacent_index];
+	
+		if (!adjacent->depth) { /*if this vertex hasn't been visited before */
+
+			++children_count;
+
+			adjacent->parent = top;
+
+			count_cut_vertices_tarjan(all_vertices, adjacent_index, depth+1, result);
+
+			if (adjacent->low >= top->depth)
 				maybe_fundamental = true;
 
-			parent->low = MIN(parent->low, current_person->depth);
+			top->low = MIN(top->low, adjacent->low);
 			  
 		}
 
-		else if (parent->parent != current_person)
-			parent->low = MIN(parent->low, current_person->depth);
+		else if (top->parent != adjacent)
+			top->low = MIN(top->low, adjacent->depth);
 
-
-		current_node = current_node -> next;	
+		adjacency = adjacency->next;
 	}
 
-	if (
-		(current_person->parent && maybe_fundamental) ||
-		(!(current_person->parent) && children_count > 1)
-
-	)/*then we have found a cut vertex!*/{
+	if ((adjacent->parent && maybe_fundamental) ||
+		(!adjacent->parent && children_count > 1)) {
+	
+			/*then we have found a cut vertex!*/
 		
-			*max = MAX(*max, parent->depth);
-			*min = MIN(*min, parent->depth);
-			return 1 + lower_fundamentals; 
+			*count += 1;
+			*max    = MAX(*max, top_index);
+			*min    = MIN(*min, top_index); 
 	}
-
-	else return lower_fundamentals; 
 }
 
 
 int main()
 {
-/* Read the first line of input given, which should be how many all_people
-exist and how many 'relations' exist between these all_people. */
+/*Read the first line of input given, which should be how many all_vertices
+  exist and how many 'relations' exist between these all_vertices.
+  However we only need the first one.*/
 
-	struct Person** all_people;
-	unsigned all_people_count;
-	unsigned fundamental_people_count;
-	struct Person* grandfather;
-	int min = -1;
-	int max = -1; 
+	/*\ Declarations:
+	 *  	all_vertices:
+	\*/
 
-	scanf("%u %*u", &all_people_count);
-	#if DEBUG
-	printf("%u\n", all_people_count);
-	#endif
 
-	all_people = malloc(sizeof(struct Person*) * all_people_count);
+	struct Vertex**  all_vertices;
+	unsigned 	 vertex_count;
+	unsigned 	 grandfather_index;
 
-	while (all_people_count--)
-		all_people[all_people_count] = new_person();
+	int 		 output[3];
 
-	get_relations(all_people);
+	scanf("%u %*u ", &vertex_count);
 
-	grandfather = all_people[rand() % all_people_count];
+	output[0] = 0; output[1] = vertex_count+1; output[2] = 0;
+	grandfather_index = rand() % vertex_count;
 
-	fundamental_people_count = count_cut_vertices_tarjan(grandfather, 1, &min, &max);
+	/* Never use index 0 of this vector. */ 
+	all_vertices = malloc(sizeof(struct Vertex) * vertex_count);
 
-	printf("%u\n%d %d\n", fundamental_people_count, min, max);
+
+	/* XXX: Make 'all_vertices' a one-indexed vector! */
+	all_vertices[vertex_count] =  NULL;
+
+	while (vertex_count) 
+		all_vertices[--vertex_count] = new_vertex();
+
+	--all_vertices;
+
+	all_vertices[0] = NULL;
+
+	get_edges(all_vertices);
+
+	count_cut_vertices_tarjan(all_vertices, grandfather_index, 1, output);
+
+	if (output[0])
+		printf("%u\n%d %d\n", output[0], output[1], output[2]);
+	else 
+		puts("0\n-1 -1\n");
 
 	return EXIT_SUCCESS;
 }
