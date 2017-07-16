@@ -1,0 +1,141 @@
+\documentclass[12pt,a4paper,notitlepage]{article}
+\usepackage[portuguese]{babel}
+\usepackage[margin=3cm]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{secdot}
+\usepackage{pgfplots}
+\usepackage[noend,linesnumbered,ruled]{algorithm2e}
+\renewcommand{\O}[1]{$\mathcal{O}(#1)$}
+\SetKwFunction{findver}{Find-Fundamental-Vertices}
+\SetKwProg{Function}{function}{}{}
+\SetKwInOut{Output}{Output}
+\SetKwFunction{init}{initialize-graph}
+\SetKwComment{Comment}{$\triangleright$\ }{}
+\pgfplotsset{compat=1.12}
+\begin{document}
+\title{\textbf{Análise e Síntese de Algoritmos} \\\large 1º Projeto}
+\date{}
+\author{Tomás Cunha, nº 81201, Grupo 15}
+\maketitle
+\section{Introdução}
+Este trabalho tem como objetivo desenvolver um algoritmo que permita descobrir as pessoas fundamentais de uma rede.
+Uma pessoa é considerada fundamental se o único caminho para partilha de informação entre outras duas pessoas passa obrigatoriamente por essa pessoa.
+Este problema pode ser reduzido a encontrar os vértices de corte de um grafo conexo não dirigido, em que os vértices correspondem às pessoas e as arestas às ligações entre as mesmas, sendo semelhante ao problema 22--2 do livro \emph{Introduction to Algorithms}\cite[p.~622]{algs3ed}, em cujos exercícios me baseei para desenvolver a solução.
+
+\section{Descrição da Solução}
+O algoritmo utilizado na solução deste problema é uma variação do algoritmo DFS estudado na aula, usando também a noção de \emph{low} que é usada no algoritmo de Tarjan para encontrar componentes fortemente ligadas.
+Este \emph{low} é usado para encontrar o vértice menos profundo no grafo ao qual é possível chegar a partir de um dado vértice, permitindo encontrar arcos para trás.
+O grafo é representado por listas de adjacências.
+
+A solução, cuja justificação teórica será dada na secção seguinte, pode ser representada em pseudocódigo da seguinte forma:
+\\
+\\
+\begin{algorithm}[H]
+
+		\Function{\init{G}}{
+			\ForEach{v $\in$ V[G]}{
+					d[v] $\leftarrow$ $\infty$\;
+					$\Pi$ [v] $\leftarrow$ NIL\;
+					low[v] $\leftarrow$ $\infty$\;
+					
+			}
+			fundamental-count $\leftarrow$ 0\;
+			min-element $\leftarrow$ $+\infty$\;
+			max-element $\leftarrow$ $-\infty$\;
+			time $\leftarrow$ 0;
+}
+
+		\caption{Inicializar as estruturas necessárias}
+\end{algorithm}
+
+\begin{algorithm}[H]
+		\Function{\findver{u}}{
+			d[u]$\leftarrow$ time\;
+			low[u] $\leftarrow$ time\;
+			time $\leftarrow$ time + 1\;
+			is-fundamental $\leftarrow$ false\;
+			child-count $\leftarrow$ 0\;
+			\ForEach{v $\in$ Adj[u]}{
+					\uIf{ d[v] = $\infty$ }{
+							$\Pi$[v] $\leftarrow$ u\;
+							child-count $\leftarrow$ child-count + 1\;
+							\findver{v}\;
+					\If{$Low[v] \geq d[u]$}{
+							is-fundamental $\leftarrow$ true\;
+							}
+							Low[u] $\leftarrow$ MIN$(Low[u],Low[v])$\;
+					}
+					\ElseIf{v $\neq$ Parent[u]}{ 
+							Low[u] $\leftarrow$ MIN$(Low[u], d[v])$\Comment*{Possível arco para trás}
+				}
+			}
+			\If{$(Parent[u] \neq NIL \:\textbf{and}\: $is-fundamental$)$ \textbf{or} $(Parent[u] = NIL \:\textbf{and}\: $child-count$\ > 1)$}{
+					fundamental-count $\leftarrow$ fundamental-count + 1\;
+					min-element $\leftarrow$ MIN$($min-element, v$)$\;
+					max-element $\leftarrow$ MAX$($max-element, v$)$\;
+			}
+}
+	
+	\caption{Encontrar os vértices de corte}
+\end{algorithm}
+
+\begin{algorithm}[H]
+		Let $G =$ grafo formado a partir do input\;
+		\init{G}\;
+		\findver{1}\;
+		\Output{fundamental-count, min-fundamental, max-fundamental}
+\caption{Função principal}
+\end{algorithm}
+\pagebreak
+
+\section{Análise Teórica}
+Os dados do enunciado garantem que haverá sempre um caminho entre qualquer par de pessoas, o que indica que a floresta obtida após uma DFS será composta por uma única árvore.
+Há então dois tipos possíveis de vértices que é necessário avaliar: a raiz da árvore, e os restantes vértices.
+
+No caso de o vértice ser a raiz da árvore, será um vértice de corte se e só se tiver pelo menos dois descendentes.
+É fácil provar que isto se sucede: se tiver apenas um descendente, uma vez que é a raiz da árvore, não poderá ser um vértice de corte, pois não tem antecessores aos quais o seu antecessor já não estaria ligado.
+Se tiver dois ou mais descendentes, uma vez que a procura é em profundidade primeiro, isso significa que, após a recursão terminar para o primeiro filho (ou, no caso de ter \emph{n} filhos, para os primeiros \emph{n$-$1} filhos), o descendente restante não era adjacente a nenhum outro vértice da árvore. Isto significa que, ao remover a raiz da árvore, haverá uma divisão da árvore em duas (ou mais) subárvores. 
+
+No caso de ser outro tipo de vértice, \emph{v} será um vértice de corte se e só se tiver um descendente \emph{w} tal que nem \emph{w} nem os seus descendentes têm um arco para trás para um antecessor do vértice \emph{v}. 
+A prova desta afirmação é também simples.
+Se \emph{w} não tiver um arco para trás que o ligue a um antecessor de \emph{v}, e nenhum dos seus descendentes tiver esta ligação, a remoção de \emph{v} irá cortar a única ligação de \emph{w} e dos seus descendentes à restante árvore, que será composta por pelo menos um vértice, uma vez que \emph{v} não é a raiz da árvore.
+Se o contrário se suceder, ou seja, ou \emph{w} ou um dos seus descendentes tem um arco para trás, então mesmo que \emph{v} seja removido haverá uma ligação entre os antecessores de \emph{v} e os seus descendentes, ou seja, a remoção de \emph{v} não irá ter um efeito no número de componentes ligadas, logo \emph{v} não será um vértice de corte.
+
+Estas duas observações são suficientes para chegar à solução do problema: basta guardar o \emph{lowpoint} de cada vértice ao longo da visita, ou seja, a profundidade mais baixa à qual os descendentes de um dado vértice \emph{v} estão ligados, e conseguimos saber se estes têm ou não um arco para trás.
+Para encontrar o vértice raiz da árvore, basta ver qual o vértice que não tem predecessor.
+
+A complexidade da função \textbf{Initialize-Graph} é $\Theta(|V|)$ uma vez que percorre todos os vértices do grafo uma única vez.
+Analisando as linhas do \textbf{Algorithm 2} da secção anterior, vemos que as linhas 2--6 e 17--20 são realizadas em $\Theta(1)$, havendo um ciclo nas linhas 7--16 que é executado \emph{E} vezes, em que \emph{E} representa o número de arestas do vértice.
+A linha 10 chamará a função recursivamente para todos os vértices do grafo, uma única vez.
+Como cada chamada à função percorre todas as arestas de cada vértice, e é chamada uma única vez para cada vértice do grafo, a complexidade total da função, e consequentemente do algoritmo, será $\Theta(|V|+|E|)$, como seria expectável visto que se trata de uma variação da DFS habitual.
+\pagebreak
+
+\section{Avaliação Experimental dos Resultados}
+
+Foram realizados 100 testes, aplicando o algoritmo a grafos com entre 20\,000 e 2\,000\,000 Vértices$+$Arestas.
+Após desenhar um gráfico com os resultados da medição do tempo de execução desses testes em função da dimensão do grafo, é possível observar que é próximo do gráfico  de uma função do tipo $y=mx+b$, sendo coerente com a complexidade assimptótica $\Theta(|V|+|E|)$ obtida na análise teórica do algoritmo.
+
+\begin{center}
+\begin{tikzpicture}
+		\begin{axis}[
+				title=Relação Tempo-Dimensão,
+				xlabel={Dimensão (V+E)},
+				ylabel={Tempo (s)}
+		]
+		\addplot table {test_results.dat};
+		\end{axis}
+\end{tikzpicture}
+\end{center}
+
+\begin{thebibliography}{9}
+		\bibitem{algs3ed}
+				Thomas H. Cormen,
+				Charles E. Leiserson,
+				Ronald L. Rivest,
+				Clifford Stein,
+				\emph{Introduction to Algorithms},
+				3rd Edition,
+				September 2009
+\end{thebibliography}
+\end{document}
